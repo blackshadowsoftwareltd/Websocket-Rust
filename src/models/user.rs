@@ -2,14 +2,14 @@ use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct User {
-    pub name: Option<String>,
-    pub id: SocketAddr,
+    pub name: Option<u8>,
+    pub addr: SocketAddr,
 }
 
 impl User {
-    pub fn new(id: SocketAddr) -> Self {
-        Self { name: None, id }
+    pub fn new(addr: SocketAddr) -> Self {
+        Self { name: None, addr }
     }
 }

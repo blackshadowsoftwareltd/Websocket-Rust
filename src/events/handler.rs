@@ -4,13 +4,12 @@ use futures_channel::mpsc::unbounded;
 use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
 
 use crate::{
-    helpers::{function::user::add_addr_in_users, types::PeerMap},
+    helpers::function::user::{add_addr_in_users, get_all_other_u_sender, remove_user},
     models::user::User,
 };
 use tokio::net::TcpStream;
 
-pub async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: SocketAddr) {
-    add_addr_in_users(addr);
+pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
     println!("Incoming TCP connection from: {}", addr);
 
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
@@ -20,10 +19,27 @@ pub async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: S
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
-    let c = User::new(addr.clone());
-    peer_map.lock().unwrap().insert(c, tx);
+    let current_user = User::new(addr.clone());
+    add_addr_in_users(current_user.clone(), tx);
+    // peer_map.lock().unwrap().insert(c, tx);
 
     let (ws_writer, ws_read) = ws_stream.split();
+
+    // loop {
+    //     tokio::select! {
+    //       Some(msg)=ws_read.next()=>{
+    //         match msg {
+    //           Ok(msg) => {
+    //             println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
+    //           }
+    //           Err(e) => {
+    //             println!("Error reading message from {}: {:?}", addr, e);
+    //             break;
+    //           }
+    //         }
+    //       }
+    //     }
+    // }
 
     let broadcast_incoming = ws_read.try_for_each(|msg| {
         println!(
@@ -31,15 +47,15 @@ pub async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: S
             addr,
             msg.to_text().unwrap()
         );
-        let peers = peer_map.lock().unwrap();
+        // let peers = peer_map.lock().unwrap();
 
         // We want to broadcast the message to everyone except ourselves.
-        let broadcast_recipients = peers
-            .iter()
-            .filter(|(user, _)| user.id != addr)
-            .map(|(_, ws_sink)| ws_sink);
+        // let broadcast_recipients = peers
+        //     .iter()
+        //     .filter(|(user, _)| user.id != addr)
+        //     .map(|(_, ws_sink)| ws_sink);
 
-        for recp in broadcast_recipients {
+        for recp in get_all_other_u_sender(current_user) {
             recp.unbounded_send(msg.clone()).unwrap();
         }
 
@@ -52,6 +68,6 @@ pub async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: S
     future::select(broadcast_incoming, receive_from_others).await;
 
     println!("{} disconnected", &addr);
-    let c = User::new(addr.clone());
-    peer_map.lock().unwrap().remove(&c);
+
+    remove_user(current_user.clone());
 }

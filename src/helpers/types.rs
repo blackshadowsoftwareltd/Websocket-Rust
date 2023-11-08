@@ -1,12 +1,12 @@
 use futures_channel::mpsc::UnboundedSender;
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Mutex, OnceLock},
 };
 
 use tokio_tungstenite::tungstenite::protocol::Message;
 
 use crate::models::user::User;
 
-pub type Tx = UnboundedSender<Message>;
-pub type PeerMap = Arc<Mutex<HashMap<User, Tx>>>;
+pub type USender = UnboundedSender<Message>;
+pub type UsersHashMap = OnceLock<Mutex<HashMap<User, USender>>>;
