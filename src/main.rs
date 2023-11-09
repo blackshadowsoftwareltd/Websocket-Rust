@@ -20,9 +20,8 @@ async fn main() {
 
 pub async fn ws_run() -> Result<()> {
     let listener = ws_config().await?;
-    // let state = PeerMap::new(Mutex::new(HashMap::new()));
     while let Ok((stream, addr)) = listener.accept().await {
-        tokio::spawn(handle_connection(stream, addr));
+        tokio::task::spawn(async move { handle_connection(stream, addr).await });
     }
     anyhow::Ok(())
 }
