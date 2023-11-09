@@ -11,7 +11,7 @@ pub fn new_connection_notify(c: User) -> Result<()> {
         let info = NewUser::new("Mr".to_string(), c.addr.to_string());
         let json = serde_json::to_string(&info)?;
         let msg = Message::Text(json);
-        recp.unbounded_send(msg)?;
+        recp.send(msg)?;
     }
     Ok(())
 }
