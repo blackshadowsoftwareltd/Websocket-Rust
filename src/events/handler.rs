@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use futures_channel::mpsc::unbounded;
-use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
+use futures_util::{future, pin_mut, stream::TryStreamExt, SinkExt, StreamExt};
 
 use crate::{
     helpers::function::user::{add_addr_in_users, get_all_other_u_sender, remove_user},
@@ -17,57 +17,31 @@ pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
         .expect("Error during the websocket handshake occurred");
     println!("WebSocket connection established: {}", addr);
 
-    // Insert the write part of this peer to the peer map.
-    let (tx, rx) = unbounded();
+    let (tx, mut rx) = unbounded();
     let current_user = User::new(addr.clone());
     add_addr_in_users(current_user.clone(), tx);
-    // peer_map.lock().unwrap().insert(c, tx);
 
-    let (ws_writer, ws_read) = ws_stream.split();
+    let (mut ws_writer, mut ws_read) = ws_stream.split();
+    loop {
+        tokio::select! {
+          Some(msg)=ws_read.next()=>{
+            match msg {
+              Ok(msg) => {
+                println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
 
-    // loop {
-    //     tokio::select! {
-    //       Some(msg)=ws_read.next()=>{
-    //         match msg {
-    //           Ok(msg) => {
-    //             println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
-    //           }
-    //           Err(e) => {
-    //             println!("Error reading message from {}: {:?}", addr, e);
-    //             break;
-    //           }
-    //         }
-    //       }
-    //     }
-    // }
-
-    let broadcast_incoming = ws_read.try_for_each(|msg| {
-        println!(
-            "Received a message from {}: {}",
-            addr,
-            msg.to_text().unwrap()
-        );
-        // let peers = peer_map.lock().unwrap();
-
-        // We want to broadcast the message to everyone except ourselves.
-        // let broadcast_recipients = peers
-        //     .iter()
-        //     .filter(|(user, _)| user.id != addr)
-        //     .map(|(_, ws_sink)| ws_sink);
-
-        for recp in get_all_other_u_sender(current_user) {
-            recp.unbounded_send(msg.clone()).unwrap();
+                for recp in get_all_other_u_sender(current_user) {
+                    recp.unbounded_send(msg.clone()).unwrap();
+                }
+              }
+              Err(e) => {
+                println!("Error reading message from {}: {:?}", addr, e);
+                break;
+              }
+            }
+          }
+          Some(m)=rx.next() =>{
+            ws_writer.send(m).await.expect("Failed to send msg");
+          }
         }
-
-        future::ok(())
-    });
-
-    let receive_from_others = rx.map(Ok).forward(ws_writer);
-
-    pin_mut!(broadcast_incoming, receive_from_others);
-    future::select(broadcast_incoming, receive_from_others).await;
-
-    println!("{} disconnected", &addr);
-
-    remove_user(current_user.clone());
+    }
 }
