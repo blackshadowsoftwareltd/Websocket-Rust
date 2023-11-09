@@ -1,15 +1,16 @@
+use anyhow::Result;
+use futures_channel::mpsc::unbounded;
+use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 
-use futures_channel::mpsc::unbounded;
-use futures_util::{future, pin_mut, stream::TryStreamExt, SinkExt, StreamExt};
-
 use crate::{
-    helpers::function::user::{add_addr_in_users, get_all_other_u_sender, remove_user},
+    events::sender::new_connection::new_connection_notify,
+    helpers::function::user::{add_addr_in_users, get_all_other_u_sender},
     models::user::User,
 };
 use tokio::net::TcpStream;
 
-pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
+pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) -> Result<()> {
     println!("Incoming TCP connection from: {}", addr);
 
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
@@ -22,20 +23,23 @@ pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
     add_addr_in_users(current_user.clone(), tx);
 
     let (mut ws_writer, mut ws_read) = ws_stream.split();
+
+    new_connection_notify(current_user.clone())?;
     loop {
         tokio::select! {
           Some(msg)=ws_read.next()=>{
             match msg {
-              Ok(msg) => {
+                 Ok(msg) => {
                 println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
 
                 for recp in get_all_other_u_sender(current_user) {
                     recp.unbounded_send(msg.clone()).unwrap();
                 }
+
               }
               Err(e) => {
                 println!("Error reading message from {}: {:?}", addr, e);
-                break;
+                break
               }
             }
           }
@@ -44,4 +48,5 @@ pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) {
           }
         }
     }
+    anyhow::Ok(())
 }
