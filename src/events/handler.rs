@@ -6,8 +6,11 @@ use tokio::sync::mpsc::unbounded_channel;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::{
-    events::sender::new_connection::new_connection_notify,
-    helpers::function::user::{add_addr_in_users, get_all_other_u_sender},
+    events::sender::connection::new_connection_notify,
+    helpers::function::{
+        user::{add_addr_in_users, get_all_other_u_sender},
+        ws::ws_disconnected,
+    },
     models::user::User,
 };
 use tokio::net::TcpStream;
@@ -31,13 +34,16 @@ pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) -> Resul
         tokio::select! {
           Some(msg)=ws_read.next()=>{
             match msg {
-                 Ok(msg) => {
-                println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
-
-                for recp in get_all_other_u_sender(current_user) {
-                    recp.send(msg.clone()).unwrap();
+              Ok(msg) => {
+                match ws_disconnected(current_user.clone(),msg.clone())?{
+                  true=>{ break; }
+                  false=>{
+                    println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
+                    for recp in get_all_other_u_sender(current_user) {
+                       recp.send(msg.clone()).unwrap();
+                    }
+                  }
                 }
-
               }
               Err(e) => {
                 println!("Error reading message from {}: {:?}", addr, e);
@@ -50,5 +56,6 @@ pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) -> Resul
           }
         }
     }
+    println!("Client {} disconnected", addr);
     anyhow::Ok(())
 }

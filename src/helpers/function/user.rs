@@ -63,6 +63,7 @@ pub fn get_all_other_users(user: User) -> Vec<User> {
         .filter(|x| x != &user)
         .collect()
 }
+
 pub fn get_all_other_u_sender(user: User) -> Vec<USender> {
     let set = USERS
         .get_or_init(|| Mutex::new(HashMap::new()))
@@ -74,6 +75,15 @@ pub fn get_all_other_u_sender(user: User) -> Vec<USender> {
         .filter(|(u, _)| u != &user)
         .map(|(_, s)| s)
         .collect()
+}
+
+pub fn get_all_u_sender() -> Vec<USender> {
+    let set = USERS
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap();
+
+    set.clone().into_iter().map(|(_, s)| s).collect()
 }
 
 pub fn add_addr_in_users(u: User, u_sender: USender) {

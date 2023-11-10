@@ -15,14 +15,14 @@ impl User {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct NewUser {
+pub struct UserInfo {
     pub name: Option<String>,
     pub ws_id: Option<String>,
 }
 
-impl NewUser {
+impl UserInfo {
     pub fn new(n: String, w: String) -> Self {
-        NewUser {
+        UserInfo {
             name: Some(n),
             ws_id: Some(w),
         }
