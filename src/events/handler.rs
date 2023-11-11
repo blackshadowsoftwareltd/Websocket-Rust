@@ -3,13 +3,16 @@ use anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use tokio::sync::mpsc::unbounded_channel;
-use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::{
+    handshake::server::{Request, Response},
+    Message,
+};
 
 use crate::{
     events::sender::connection::new_connection_notify,
     helpers::function::{
         user::{add_addr_in_users, get_all_other_u_sender},
-        ws::ws_disconnected,
+        ws::{ws_disconnected, ws_header_validation},
     },
     models::user::User,
 };
@@ -18,7 +21,10 @@ use tokio::net::TcpStream;
 pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) -> Result<()> {
     println!("Incoming TCP connection from: {}", addr);
 
-    let ws_stream = tokio_tungstenite::accept_async(raw_stream)
+    let ws_stream =
+        tokio_tungstenite::accept_hdr_async(raw_stream, |req: &Request, res: Response| {
+            ws_header_validation(req, res)
+        })
         .await
         .expect("Error during the websocket handshake occurred");
     println!("WebSocket connection established: {}", addr);
