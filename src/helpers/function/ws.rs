@@ -1,17 +1,16 @@
+use std::net::SocketAddr;
+
 use tokio_tungstenite::tungstenite::{
     handshake::server::{ErrorResponse, Request, Response},
     http::HeaderValue,
     Message,
 };
 
-use crate::{
-    events::sender::connection::close_connection_notify, helpers::constants::ws::WS_AUTH,
-    models::user::User,
-};
+use crate::{events::sender::connection::close_connection_notify, helpers::constants::ws::WS_AUTH};
 
-pub fn ws_disconnected(c: User, msg: Message) -> anyhow::Result<bool> {
+pub fn ws_disconnected(addr: SocketAddr, msg: Message) -> anyhow::Result<bool> {
     if msg.is_close() && msg.is_empty() {
-        close_connection_notify(c)?;
+        close_connection_notify(addr)?;
         return Ok(true);
     }
     return Ok(false);

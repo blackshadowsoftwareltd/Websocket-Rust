@@ -3,7 +3,8 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-use crate::{helpers::types::UsersHashMap, models::user::User};
+use crate::{helpers::types::SocketHashMap, models::user::User};
 
-pub static USERS: UsersHashMap = OnceLock::new();
+// pub static USERS: UsersHashMap = OnceLock::new();
+pub static SOCKET_ADDRS: SocketHashMap = OnceLock::new();
 pub static CURRENT_USER: OnceLock<Mutex<HashSet<User>>> = OnceLock::new();

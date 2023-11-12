@@ -1,5 +1,4 @@
 use anyhow::Result;
-// use futures_channel::mpsc::unbounded;
 use futures_util::{SinkExt, StreamExt};
 use std::net::SocketAddr;
 use tokio::sync::mpsc::unbounded_channel;
@@ -11,10 +10,9 @@ use tokio_tungstenite::tungstenite::{
 use crate::{
     events::sender::connection::new_connection_notify,
     helpers::function::{
-        user::{add_addr_in_users, get_all_other_u_sender},
+        socket_addr::{add_socket_addr, get_all_other_u_sender},
         ws::{ws_disconnected, ws_header_validation},
     },
-    models::user::User,
 };
 use tokio::net::TcpStream;
 
@@ -30,22 +28,21 @@ pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) -> Resul
     println!("WebSocket connection established: {}", addr);
 
     let (tx, mut rx) = unbounded_channel::<Message>();
-    let current_user = User::new(addr.clone());
-    add_addr_in_users(current_user.clone(), tx);
+    add_socket_addr(addr.clone(), tx);
 
     let (mut ws_writer, mut ws_read) = ws_stream.split();
 
-    new_connection_notify(current_user.clone())?;
+    new_connection_notify(addr.clone())?;
     loop {
         tokio::select! {
           Some(msg)=ws_read.next()=>{
             match msg {
               Ok(msg) => {
-                match ws_disconnected(current_user.clone(),msg.clone())?{
+                match ws_disconnected(addr.clone(),msg.clone())?{
                   true=>{ break; }
                   false=>{
                     println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
-                    for recp in get_all_other_u_sender(current_user) {
+                    for recp in get_all_other_u_sender(addr.clone()) {
                        recp.send(msg.clone()).unwrap();
                     }
                   }

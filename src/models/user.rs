@@ -2,9 +2,9 @@ use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct User {
-    pub name: Option<u8>,
+    pub name: Option<String>,
     pub addr: SocketAddr,
 }
 
