@@ -8,9 +8,13 @@ use tokio_tungstenite::tungstenite::{
 };
 
 use crate::{
-    events::sender::connection::{get_existing_connections, new_connection_notify},
+    events::sender::{
+        connection::{get_existing_connections, new_connection_notify},
+        message::{send_message, send_message_to_all_other_users},
+    },
     helpers::function::{
-        socket_addr::{add_socket_addr, get_all_other_u_sender},
+        socket_addr::add_socket_addr,
+        validation::validate_message_type,
         ws::{ws_disconnected, ws_header_validation},
     },
 };
@@ -42,9 +46,12 @@ pub async fn handle_connection(raw_stream: TcpStream, addr: SocketAddr) -> Resul
                 match ws_disconnected(addr.clone(),msg.clone())?{
                   true=>{ break; }
                   false=>{
-                    println!("Received a message from {}: {}", addr, msg.to_text().unwrap());
-                    for recp in get_all_other_u_sender(addr.clone()) {
-                       recp.send(msg.clone()).unwrap();
+                    println!("Received a message from {}: {}", addr, msg.to_text()?);
+                  let (message,raw)=  validate_message_type(msg.clone())?;
+                    if raw.is_some(){
+                      send_message_to_all_other_users(addr.clone(),raw.unwrap())?;
+                    } else if message.is_some(){
+                      send_message(addr.clone(),tx.clone(),message.unwrap())?;
                     }
                   }
                 }
