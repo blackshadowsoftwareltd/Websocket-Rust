@@ -6,4 +6,5 @@ use crate::models::user::UserInfo;
 pub enum WsMsgType {
     NewConn(UserInfo),
     DisConn(UserInfo),
+    ExistingConn(Vec<UserInfo>),
 }

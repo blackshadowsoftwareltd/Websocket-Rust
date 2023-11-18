@@ -38,5 +38,5 @@ fn ws_err(msg: Option<String>) -> Result<Response, ErrorResponse> {
 
 fn validate_user_id(value: &HeaderValue) -> anyhow::Result<bool> {
     let id = value.to_str()?;
-    Ok(id == "u_id")
+    Ok(id == "token")
 }

@@ -39,3 +39,12 @@ impl UserInfoExt for UserInfo {
         WsMsgType::DisConn(self.clone())
     }
 }
+pub trait UserInfoListExt {
+    fn to_new_conn(&self) -> WsMsgType;
+}
+
+impl UserInfoListExt for Vec<UserInfo> {
+    fn to_new_conn(&self) -> WsMsgType {
+        WsMsgType::ExistingConn(self.clone())
+    }
+}
